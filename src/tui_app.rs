@@ -1,5 +1,3 @@
-// src/tui_app.rs
-
 use crate::config::{Entry, EnvProfile};
 use crate::db;
 use crate::export::{self, OperationMode};
@@ -70,6 +68,7 @@ impl AppState {
         db::save_profile(&self.conn, profile)?;
         Ok(())
     }
+
     pub fn delete_env_var(&mut self, index: usize) -> Result<()> {
         let profile = &mut self.profiles[self.active_profile_index];
         if index < profile.entries.len() {
@@ -78,6 +77,7 @@ impl AppState {
         }
         Ok(())
     }
+
     pub fn update_env_var(&mut self, index: usize, entry: Entry) -> Result<()> {
         let profile = &mut self.profiles[self.active_profile_index];
         if index < profile.entries.len() {
@@ -247,7 +247,6 @@ pub fn run() -> Result<()> {
                             }
                         }
                     }
-
                     KeyCode::Char('E') if app.active_tab == ActiveTab::Profiles => {
                         if let Some(i) = app.profile_list_state.selected() {
                             let current_name = app.profiles[i].name.clone();
@@ -272,6 +271,26 @@ pub fn run() -> Result<()> {
                             Some(i) => i - 1,
                         };
                         app.profile_list_state.select(Some(i));
+                    }
+                    // Handle Enter key to select the profile.
+                    KeyCode::Enter if app.active_tab == ActiveTab::Profiles => {
+                        if let Some(i) = app.profile_list_state.selected() {
+                            app.active_profile_index = i; // Update the active profile
+                            terminal.draw(|f| {
+                                // Force a UI refresh
+                                let size = f.size();
+                                let chunks = Layout::default()
+                                    .direction(Direction::Vertical)
+                                    .constraints(
+                                        [Constraint::Length(3), Constraint::Min(0)].as_ref(),
+                                    )
+                                    .split(size);
+                                match app.active_tab {
+                                    ActiveTab::EnvVars => draw_env_vars_ui(f, chunks[1], &mut app),
+                                    ActiveTab::Profiles => draw_profiles_ui(f, chunks[1], &mut app),
+                                }
+                            })?;
+                        }
                     }
                     _ => {}
                 }
@@ -331,13 +350,33 @@ fn draw_profiles_ui<B: Backend>(f: &mut ratatui::Frame<B>, area: Rect, app: &mut
     let items: Vec<ListItem> = app
         .profiles
         .iter()
-        .map(|p| ListItem::new(p.name.clone()))
+        .enumerate() // Add enumeration to track the index
+        .map(|(i, p)| {
+            // Highlight the active profile with a different style
+            let style = if i == app.active_profile_index {
+                Style::default()
+                    .fg(Color::Yellow) // Highlight color
+                    .add_modifier(Modifier::BOLD) // Make it bold
+            } else {
+                Style::default()
+            };
+
+            // Add a visual cue (e.g., "*") for the active profile
+            let display_name = if i == app.active_profile_index {
+                format!("* {}", p.name) // Add a star for the active profile
+            } else {
+                format!("  {}", p.name) // No star for other profiles
+            };
+
+            ListItem::new(display_name).style(style)
+        })
         .collect();
+
     let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Profiles (A: add, D: delete, E: edit selected)"),
+                .title("Profiles (A: add, D: delete, E: edit selected, Enter: select)"),
         )
         .highlight_style(
             Style::default()
@@ -347,7 +386,6 @@ fn draw_profiles_ui<B: Backend>(f: &mut ratatui::Frame<B>, area: Rect, app: &mut
         .highlight_symbol(">> ");
     f.render_stateful_widget(list, area, &mut app.profile_list_state);
 }
-
 //
 // Editor Module: Provides the Edit/Create Env Var Widget with Integrated Export Preview.
 //
