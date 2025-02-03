@@ -28,8 +28,7 @@ mental gymnastics.
 ## Installation
 
 ```bash
-git clone git@github.com:4thel00z/bath.git
-cd bath && cargo build --release
+cargo install bath
 ```
 
 ## Running bath
