@@ -7,6 +7,7 @@ mod config;
 mod db;
 mod export;
 mod tui_app;
+mod profile_editor;
 
 #[derive(Parser, Debug)]
 #[command(

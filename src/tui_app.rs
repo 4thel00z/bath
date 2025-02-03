@@ -3,6 +3,7 @@
 use crate::config::{Entry, EnvProfile};
 use crate::db;
 use crate::export::{self, OperationMode};
+use crate::profile_editor::{confirm_dialog, edit_profile_name_dialog};
 use anyhow::Result;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::{
@@ -20,19 +21,18 @@ use ratatui::{
 };
 use rusqlite::Connection;
 use std::io::stdout;
-
 //
 // Application State and CRUD Operations
 //
 
 #[derive(Clone, Copy, PartialEq)]
-enum ActiveTab {
+pub enum ActiveTab {
     EnvVars,
     Profiles,
 }
 
 pub struct AppState {
-    pub active_tab: ActiveTab,
+    pub(crate) active_tab: ActiveTab,
     pub conn: Connection,
     pub profiles: Vec<EnvProfile>,
     pub active_profile_index: usize,
@@ -235,17 +235,27 @@ pub fn run() -> Result<()> {
                     }
                     // Profiles tab key bindings.
                     KeyCode::Char('A') if app.active_tab == ActiveTab::Profiles => {
-                        let new_profile = EnvProfile::new("new_profile");
-                        app.add_profile(new_profile)?;
+                        if let Some(new_name) = edit_profile_name_dialog(&mut terminal, None)? {
+                            let new_profile = EnvProfile::new(&new_name);
+                            app.add_profile(new_profile)?;
+                        }
                     }
                     KeyCode::Char('D') if app.active_tab == ActiveTab::Profiles => {
                         if let Some(i) = app.profile_list_state.selected() {
-                            app.delete_profile(i)?;
+                            if confirm_dialog(&mut terminal, "Delete profile?")? {
+                                app.delete_profile(i)?;
+                            }
                         }
                     }
+
                     KeyCode::Char('E') if app.active_tab == ActiveTab::Profiles => {
                         if let Some(i) = app.profile_list_state.selected() {
-                            app.update_profile(i, "edited_profile".to_string())?;
+                            let current_name = app.profiles[i].name.clone();
+                            if let Some(new_name) =
+                                edit_profile_name_dialog(&mut terminal, Some(&current_name))?
+                            {
+                                app.update_profile(i, new_name)?;
+                            }
                         }
                     }
                     KeyCode::Down if app.active_tab == ActiveTab::Profiles => {
@@ -812,4 +822,3 @@ mod editor {
         }
     }
 }
-

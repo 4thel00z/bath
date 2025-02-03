@@ -1,9 +1,8 @@
 // src/export.rs
 
-use anyhow::Result;
+use crate::config::{Entry, EnvProfile};
 use crate::db;
-use crate::config::{EnvProfile, Entry, PathEntry};
-use std::io::{self, Write};
+use anyhow::Result;
 
 #[derive(Clone, Copy)]
 pub enum OperationMode {
@@ -40,7 +39,7 @@ pub fn generate_export_line(entry: &Entry, mode: OperationMode) -> String {
     let sep = entry.separator();
     match mode {
         OperationMode::Prepend => format!("export {}=\"{}{}${}\"", var_name, value, sep, var_name),
-        OperationMode::Append  => format!("export {}=\"${}{}{}\"", var_name, var_name, sep, value),
+        OperationMode::Append => format!("export {}=\"${}{}{}\"", var_name, var_name, sep, value),
         OperationMode::Replace => format!("export {}=\"{}\"", var_name, value),
     }
 }
@@ -72,14 +71,16 @@ pub fn export_profile(profile_name: &str, mode: OperationMode) -> Result<()> {
 /// When a profile is selected, its export commands (according to the given mode)
 /// are printed to stdout.
 pub fn interactive_export(mode: OperationMode) -> Result<()> {
-    use crossterm::event::{read, poll, Event, KeyCode};
-    use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+    use crossterm::event::{poll, read, Event, KeyCode};
     use crossterm::execute;
+    use crossterm::terminal::{
+        disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    };
     use ratatui::backend::CrosstermBackend;
-    use ratatui::Terminal;
     use ratatui::layout::{Constraint, Direction, Layout};
-    use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
     use ratatui::style::Style;
+    use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
+    use ratatui::Terminal;
     use std::io::stdout;
 
     let conn = db::establish_connection()?;
