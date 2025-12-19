@@ -11,6 +11,23 @@ pub enum OperationMode {
     Replace,
 }
 
+fn shell_single_quote_literal(s: &str) -> String {
+    // POSIX-shell safe single-quote escaping:
+    // wrap in single quotes, and represent any internal ' as: '"'"'
+    // Example: foo'bar => 'foo'"'"'bar'
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('\'');
+    for ch in s.chars() {
+        if ch == '\'' {
+            out.push_str("'\"'\"'");
+        } else {
+            out.push(ch);
+        }
+    }
+    out.push('\'');
+    out
+}
+
 /// Generates an export command for a single Entry.
 pub fn generate_export_line(entry: &Entry, mode: OperationMode) -> String {
     let var_name = entry.var_name();
@@ -37,10 +54,34 @@ pub fn generate_export_line(entry: &Entry, mode: OperationMode) -> String {
         | Entry::Lang(ref s) => s.clone(),
     };
     let sep = entry.separator();
+
+    let var_ref = format!("${{{}}}", var_name);
     match mode {
-        OperationMode::Prepend => format!("export {}=\"{}{}${}\"", var_name, value, sep, var_name),
-        OperationMode::Append => format!("export {}=\"${}{}{}\"", var_name, var_name, sep, value),
-        OperationMode::Replace => format!("export {}=\"{}\"", var_name, value),
+        // Use safe shell quoting for user-provided values while keeping the variable reference expanded.
+        // Also end each statement with ';' so `eval $(bath export ...)` works even if newlines collapse to spaces.
+        OperationMode::Prepend => {
+            let prefix = format!("{}{}", value, sep);
+            format!(
+                "export {}={}\"{}\";",
+                var_name,
+                shell_single_quote_literal(&prefix),
+                var_ref
+            )
+        }
+        OperationMode::Append => {
+            let suffix = format!("{}{}", sep, value);
+            format!(
+                "export {}=\"{}\"{};",
+                var_name,
+                var_ref,
+                shell_single_quote_literal(&suffix)
+            )
+        }
+        OperationMode::Replace => format!(
+            "export {}={};",
+            var_name,
+            shell_single_quote_literal(&value)
+        ),
     }
 }
 
@@ -157,5 +198,53 @@ pub fn interactive_export(mode: OperationMode) -> Result<()> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{Entry, PathEntry};
+
+    #[test]
+    fn replace_mode_single_quotes_and_escapes_inner_single_quotes() {
+        let e = Entry::CC("O'Reilly".to_string());
+        assert_eq!(
+            generate_export_line(&e, OperationMode::Replace),
+            "export CC='O'\"'\"'Reilly';"
+        );
+    }
+
+    #[test]
+    fn prepend_mode_keeps_var_expansion_and_quotes_literal_prefix() {
+        let e = Entry::Path(PathEntry {
+            path: "/opt/$HOME/bin".to_string(),
+            program: "tool".to_string(),
+            version: "1".to_string(),
+        });
+        assert_eq!(
+            generate_export_line(&e, OperationMode::Prepend),
+            "export PATH='/opt/$HOME/bin:'\"${PATH}\";"
+        );
+    }
+
+    #[test]
+    fn append_mode_keeps_var_expansion_and_quotes_literal_suffix() {
+        let e = Entry::Path(PathEntry {
+            path: "/opt/bin".to_string(),
+            program: "tool".to_string(),
+            version: "1".to_string(),
+        });
+        assert_eq!(
+            generate_export_line(&e, OperationMode::Append),
+            "export PATH=\"${PATH}\"':/opt/bin';"
+        );
+    }
+
+    #[test]
+    fn statements_end_with_semicolon() {
+        let e = Entry::CFlag("-O2 -Wall".to_string());
+        let line = generate_export_line(&e, OperationMode::Replace);
+        assert!(line.ends_with(';'), "line did not end with ';': {line}");
     }
 }
