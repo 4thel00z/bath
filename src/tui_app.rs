@@ -556,31 +556,6 @@ mod editor {
         }
     }
 
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn update_filter_does_not_reset_selected_when_search_is_unchanged() {
-            let mut s = EnvVarEditorState::new();
-
-            // Force one filter refresh.
-            s.search.push('c');
-            s.update_filter();
-            assert!(
-                s.filtered.len() > 2,
-                "expected enough options for selection test"
-            );
-
-            // Simulate user moving selection in the options list.
-            s.selected = 2;
-
-            // Subsequent draws call update_filter again; selection must not be reset.
-            s.update_filter();
-            assert_eq!(s.selected, 2);
-        }
-    }
-
     /// Launches the edit/create env var widget.
     /// Displays fuzzy search on the left and input fields on the right,
     /// with an integrated preview (using default Prepend mode) of the export command for the current variable.
@@ -886,6 +861,31 @@ mod editor {
                     }
                 }
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn update_filter_does_not_reset_selected_when_search_is_unchanged() {
+            let mut s = EnvVarEditorState::new();
+
+            // Force one filter refresh.
+            s.search.push('c');
+            s.update_filter();
+            assert!(
+                s.filtered.len() > 2,
+                "expected enough options for selection test"
+            );
+
+            // Simulate user moving selection in the options list.
+            s.selected = 2;
+
+            // Subsequent draws call update_filter again; selection must not be reset.
+            s.update_filter();
+            assert_eq!(s.selected, 2);
         }
     }
 }
