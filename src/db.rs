@@ -37,6 +37,18 @@ pub fn save_profile(conn: &Connection, profile: &EnvProfile) -> Result<()> {
     Ok(())
 }
 
+/// Rename a profile without leaving stale rows behind.
+pub fn rename_profile(conn: &Connection, old_name: &str, new_name: &str) -> Result<()> {
+    let updated = conn.execute(
+        "UPDATE profiles SET name = ?1 WHERE name = ?2",
+        params![new_name, old_name],
+    )?;
+    if updated == 0 {
+        anyhow::bail!("profile not found: {old_name}");
+    }
+    Ok(())
+}
+
 /// Load a profile by name.
 pub fn load_profile(conn: &Connection, name: &str) -> Result<EnvProfile> {
     let mut stmt = conn.prepare("SELECT name, entries FROM profiles WHERE name = ?1")?;
@@ -71,4 +83,34 @@ pub fn load_all_profiles(conn: &Connection) -> Result<Vec<EnvProfile>> {
 pub fn delete_profile(conn: &Connection, name: &str) -> Result<()> {
     conn.execute("DELETE FROM profiles WHERE name = ?1", params![name])?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rename_profile_updates_row_in_place() -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        initialize_db(&conn)?;
+
+        let p = EnvProfile {
+            name: "old".to_string(),
+            entries: vec![Entry::CFlag("-O2".to_string())],
+        };
+        save_profile(&conn, &p)?;
+
+        rename_profile(&conn, "old", "new")?;
+
+        // Only one row should exist, with the new name.
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM profiles", [], |row| row.get(0))?;
+        assert_eq!(count, 1);
+
+        let loaded = load_profile(&conn, "new")?;
+        assert_eq!(loaded.name, "new");
+        assert_eq!(loaded.entries.len(), 1);
+
+        assert!(load_profile(&conn, "old").is_err());
+        Ok(())
+    }
 }

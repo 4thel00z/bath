@@ -105,8 +105,9 @@ impl AppState {
     }
     pub fn update_profile(&mut self, index: usize, new_name: String) -> Result<()> {
         if index < self.profiles.len() {
-            self.profiles[index].name = new_name.clone();
-            db::save_profile(&self.conn, &self.profiles[index])?;
+            let old_name = self.profiles[index].name.clone();
+            db::rename_profile(&self.conn, &old_name, &new_name)?;
+            self.profiles[index].name = new_name;
         }
         Ok(())
     }
