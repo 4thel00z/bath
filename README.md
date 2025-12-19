@@ -14,6 +14,10 @@
 
 `bath` is a terminal UI (TUI) tool for managing environment-variable profiles (e.g. `PATH`, compiler flags, and linker flags) backed by SQLite.
 
+<p align="center">
+  <img src="assets/bath.gif" alt="bath demo" />
+</p>
+
 ## Features
 
 - **Profiles in SQLite**: store multiple named profiles and switch/export them consistently
@@ -35,6 +39,60 @@ cargo install bath
 bath
 ```
 
+- **TUI navigation (k9s-style)**
+
+- **Views**: single active view with an always-visible bottom **Details** pane.
+- **Global keys**
+  - **`:`**: command palette (jump views / run commands)
+  - **`/`**: filter current view (live while typing, `Esc` cancels/clears)
+  - **`j`/`k`** or **Arrow keys**: move selection
+  - **`g`/`End`**: jump to bottom
+  - **`G`/`Home`**: jump to top
+  - **`q`**: quit
+
+- **Common `:` commands**
+  - **`:profiles` `:vars` `:parts` `:items` `:defs` `:preview` `:export` `:help`**
+  - **`:use <profile>`**
+  - **`:themes`** (list available theme presets)
+  - **`:theme <name>`** (switch theme; also persists to config)
+  - **`:new-var`** (create a custom env var definition)
+  - **`:new-item`** (create an item)
+  - **`:quit`**
+
+- **Theming**
+  - Config file: **`~/.config/bath/config.toml`** (or `$XDG_CONFIG_HOME/bath/config.toml`)
+  - Example:
+
+```toml
+[theme]
+preset = "dracula"
+
+# Optional overrides (accepts oklch(...) like DaisyUI, or #RRGGBB)
+primary = "oklch(75% 0.18 346)"
+base_100 = "#0b0f19"
+```
+
+- **Asciinema demo**
+
+The repository includes a full recording that demonstrates:
+
+- switching views via `:`
+- filtering via `/`
+- creating a profile, custom var definition, and items
+- picking/dropping items and editing parts
+- preview/export views
+- switching themes
+
+```bash
+asciinema play assets/bath-demo.cast
+```
+
+Optionally upload it to asciinema.org to share a link:
+
+```bash
+asciinema upload assets/bath-demo.cast
+```
+
 - **Export a profile**:
 
 ```bash
@@ -51,6 +109,12 @@ eval "$(bath export my_profile)"
 
 ```bash
 bath export my_profile --mode append
+```
+
+- **Export help**:
+
+```bash
+bath export --help
 ```
 
 ## Data storage
