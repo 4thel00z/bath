@@ -1,29 +1,29 @@
-# bath
+<p align="center">
+  <span style="font-size: 72px; line-height: 1">🚿</span>
+</p>
 
-## Motivation
+<h1 align="center">bath</h1>
 
-`$PATH` is outdated.  
-So are a lot of other environment variables and mechanisms that rely on juggling `:` characters to establish implicit
-lookup precedence. It's 2025—why are we still managing our toolchains like it's the 90s?
+<p align="center">
+  <a href="https://github.com/4thel00z/bath/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/4thel00z/bath/actions/workflows/ci.yml/badge.svg" />
+  </a>
+  <a href="https://crates.io/crates/bath">
+    <img alt="Crates.io" src="https://img.shields.io/crates/v/bath.svg" />
+  </a>
+  <a href="https://github.com/4thel00z/bath/blob/master/LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/4thel00z/bath" />
+  </a>
+</p>
 
-Imagine a world where you can manage different versions of your applications, compiler flags, and linker options *
-*properly**—all stored neatly in an **SQLite database**. No more weird shell scripts, no more lost configurations, and
-no more wondering why `gcc` just picked up the wrong library version again.
+`bath` is a terminal UI (TUI) tool for managing environment-variable profiles (e.g. `PATH`, compiler flags, and linker flags) backed by SQLite.
 
-## What does bath do?
+## Features
 
-Bath is a **TUI-based CLI tool** that helps you **manage, edit, preview, and export** your environment variable
-profiles. It brings order to your `$PATH`, compiler flags, and other C/C++-related variables without making you do
-mental gymnastics.
-
-### Features:
-
-✅ **Manage $PATH like a sane person**  
-✅ **Store multiple environment profiles in SQLite**  
-✅ **Interactive TUI with fuzzy search & live previews**  
-✅ **Export configurations in a format you can `eval`**  
-✅ **Prepend, Append, or Replace mode for any env var**  
-✅ **No weird shell scripts, just pure config bliss**
+- **Profiles in SQLite**: store multiple named profiles and switch/export them consistently
+- **Interactive TUI**: edit variables with live preview of the resulting export output
+- **Export for shell eval**: print `export ...` statements for the selected profile
+- **Modes**: prepend/append/replace behavior per variable
 
 ## Installation
 
@@ -31,37 +31,59 @@ mental gymnastics.
 cargo install bath
 ```
 
-## Running bath
+## Usage
 
-Inside bath, you get:
-
-- **Two Tabs:** One for environment variables, one for profiles (←/→ to switch).
-- **Full Control:**
-    - `a` → Edit/add a variable (with a **fuzzy search** for types and live export preview).
-    - `e` → Modify an existing variable.
-    - `d` → Delete a variable.
-- **A live preview of the full export command** (ready to be `eval`'d in your shell).
-
-## Exporting profiles
-
-Bath doesn't generate weird scripts with shebangs. It just prints **what you need to eval**, like this:
+- **TUI mode**:
 
 ```bash
-➜ bath export my_profile
-export PATH="/opt/coolstuff/bin:$PATH"
-export CFLAGS="-O2 -Wall"
-export LDFLAGS="-L/opt/coolstuff/lib"
+bath
 ```
 
-Or, if you don't specify a profile, you'll get a TUI where you can select one interactively.
-
-The recommended way to use `bath export` is by eval-ing it's output!
+- **Export a profile**:
 
 ```bash
-eval $(bath export my_profile)
+bath export my_profile
 ```
+
+- **Eval in your shell**:
+
+```bash
+eval "$(bath export my_profile)"
+```
+
+- **Choose export mode** (`prepend` is default):
+
+```bash
+bath export my_profile --mode append
+```
+
+## Data storage
+
+Bath stores profiles in a SQLite database at:
+
+- `~/.bath.db`
+
+## Development
+
+### pre-commit hooks
+
+This repository includes a `.pre-commit-config.yaml` to run basic checks locally (formatting, clippy, tests).
+
+```bash
+pipx install pre-commit
+pre-commit install
+pre-commit run -a
+```
+
+### CI
+
+GitHub Actions runs the following on every push and pull request:
+
+- `cargo fmt --check`
+- `cargo clippy -- -D warnings`
+- `cargo test`
 
 ## License
 
-This project is licensed under the GPL-3 license.
+GPL-3.0. See `LICENSE`.
 
