@@ -1,0 +1,6 @@
+[workspace]
+# Configuration is optional; this file exists mainly to make the release policy explicit.
+# See: https://release-plz.dev/docs/config
+release_always = false
+
+

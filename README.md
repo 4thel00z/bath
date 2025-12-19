@@ -79,6 +79,13 @@ GitHub Actions runs the following on every push and pull request:
 - `cargo clippy -- -D warnings`
 - `cargo test`
 
+### Releasing (crates.io)
+
+Releases are automated with `release-plz` (it opens a release PR and publishes to crates.io after merge).
+
+- **Required GitHub setting**: in `Settings → Actions → General`, set workflow permissions to allow GitHub Actions to create and approve pull requests. See the official quickstart: https://release-plz.dev/docs/github/quickstart
+- **Required secret**: `CARGO_REGISTRY_TOKEN` (crates.io token with scopes `publish-new` and `publish-update`), used by `.github/workflows/release-plz.yml`.
+
 ## License
 
 GPL-3.0. See `LICENSE`.
