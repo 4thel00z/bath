@@ -1,8 +1,4 @@
-<p align="center">
-  <span style="font-size: 72px; line-height: 1">🚿</span>
-</p>
-
-<h1 align="center">bath</h1>
+<h1 align="center">bath 🚿</h1>
 
 <p align="center">
   <a href="https://github.com/4thel00z/bath/actions/workflows/ci.yml">
