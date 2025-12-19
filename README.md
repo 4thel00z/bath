@@ -72,26 +72,9 @@ primary = "oklch(75% 0.18 346)"
 base_100 = "#0b0f19"
 ```
 
-- **Asciinema demo**
+- **Demo**
 
-The repository includes a full recording that demonstrates:
-
-- switching views via `:`
-- filtering via `/`
-- creating a profile, custom var definition, and items
-- picking/dropping items and editing parts
-- preview/export views
-- switching themes
-
-```bash
-asciinema play assets/bath-demo.cast
-```
-
-Optionally upload it to asciinema.org to share a link:
-
-```bash
-asciinema upload assets/bath-demo.cast
-```
+The README includes a GIF (`assets/bath.gif`) showing the TUI in action.
 
 - **Export a profile**:
 
