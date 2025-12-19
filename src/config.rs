@@ -74,12 +74,51 @@ impl Entry {
         match self {
             // PATH and library paths are colon separated.
             Entry::Path(_)
+            | Entry::CPath(_)
+            | Entry::CInclude(_)
+            | Entry::CPlusInclude(_)
+            | Entry::OBJCInclude(_)
             | Entry::LibraryPath(_)
             | Entry::LDLibraryPath(_)
             | Entry::LDRunPath(_) => ":",
             // Other flags are space separated.
             _ => " ",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn separator_is_colon_for_path_like_vars() {
+        assert_eq!(
+            Entry::Path(PathEntry {
+                path: "/opt/bin".to_string(),
+                program: "tool".to_string(),
+                version: "1".to_string(),
+            })
+            .separator(),
+            ":"
+        );
+
+        assert_eq!(Entry::CPath("/opt/include".to_string()).separator(), ":");
+        assert_eq!(Entry::CInclude("/opt/include".to_string()).separator(), ":");
+        assert_eq!(Entry::CPlusInclude("/opt/include".to_string()).separator(), ":");
+        assert_eq!(Entry::OBJCInclude("/opt/include".to_string()).separator(), ":");
+
+        assert_eq!(Entry::LibraryPath("/opt/lib".to_string()).separator(), ":");
+        assert_eq!(Entry::LDLibraryPath("/opt/lib".to_string()).separator(), ":");
+        assert_eq!(Entry::LDRunPath("/opt/lib".to_string()).separator(), ":");
+    }
+
+    #[test]
+    fn separator_is_space_for_flags() {
+        assert_eq!(Entry::CFlag("-O2 -Wall".to_string()).separator(), " ");
+        assert_eq!(Entry::CXXFlag("-O2 -Wall".to_string()).separator(), " ");
+        assert_eq!(Entry::CPPFlag("-DDEBUG".to_string()).separator(), " ");
+        assert_eq!(Entry::LDFlag("-L/opt/lib".to_string()).separator(), " ");
     }
 }
 
