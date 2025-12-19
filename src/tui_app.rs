@@ -1,4 +1,4 @@
-use crate::config::{Entry, EnvProfile};
+use crate::config::{CustomVarDef, Entry, EnvProfile, VarKind};
 use crate::db;
 use crate::export::{self, OperationMode};
 use crate::profile_editor::{confirm_dialog, edit_profile_name_dialog};
@@ -29,6 +29,149 @@ pub enum ActiveTab {
     Profiles,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EditorStyle {
+    Single,
+    PathPart,
+    PartsList,
+}
+
+#[derive(Clone)]
+pub struct VarTypeOption {
+    pub name: String,
+    pub kind: VarKind,
+    pub separator: String,
+    pub editor: EditorStyle,
+}
+
+fn builtin_var_options() -> Vec<VarTypeOption> {
+    vec![
+        VarTypeOption {
+            name: "PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PathPart,
+        },
+        // colon-separated lists
+        VarTypeOption {
+            name: "CPATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "C_INCLUDE_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "CPLUS_INCLUDE_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "OBJC_INCLUDE_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "LIBRARY_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "LD_LIBRARY_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "LD_RUN_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ":".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        // space-separated lists
+        VarTypeOption {
+            name: "CPPFLAGS".to_string(),
+            kind: VarKind::List,
+            separator: " ".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "CFLAGS".to_string(),
+            kind: VarKind::List,
+            separator: " ".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "CXXFLAGS".to_string(),
+            kind: VarKind::List,
+            separator: " ".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        VarTypeOption {
+            name: "LDFLAGS".to_string(),
+            kind: VarKind::List,
+            separator: " ".to_string(),
+            editor: EditorStyle::PartsList,
+        },
+        // scalars
+        VarTypeOption {
+            name: "RANLIB".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "CC".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "CXX".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "AR".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "STRIP".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "GCC_EXEC_PREFIX".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "COLLECT_GCC_OPTIONS".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+        VarTypeOption {
+            name: "LANG".to_string(),
+            kind: VarKind::Scalar,
+            separator: "".to_string(),
+            editor: EditorStyle::Single,
+        },
+    ]
+}
+
 pub struct AppState {
     pub(crate) active_tab: ActiveTab,
     pub conn: Connection,
@@ -36,6 +179,8 @@ pub struct AppState {
     pub active_profile_index: usize,
     pub env_list_state: ListState,
     pub profile_list_state: ListState,
+    pub custom_var_defs: Vec<CustomVarDef>,
+    pub var_options: Vec<VarTypeOption>,
 }
 
 impl AppState {
@@ -51,14 +196,36 @@ impl AppState {
         env_list_state.select(Some(0));
         let mut profile_list_state = ListState::default();
         profile_list_state.select(Some(0));
-        Ok(AppState {
+        let mut app = AppState {
             active_tab: ActiveTab::EnvVars,
             conn,
             profiles,
             active_profile_index: 0,
             env_list_state,
             profile_list_state,
-        })
+            custom_var_defs: Vec::new(),
+            var_options: Vec::new(),
+        };
+        app.refresh_var_options()?;
+        Ok(app)
+    }
+
+    pub fn refresh_var_options(&mut self) -> Result<()> {
+        self.custom_var_defs = db::load_custom_var_defs(&self.conn)?;
+        let mut opts = builtin_var_options();
+        for d in &self.custom_var_defs {
+            opts.push(VarTypeOption {
+                name: d.name.clone(),
+                kind: d.kind.clone(),
+                separator: d.separator.clone(),
+                editor: match d.kind {
+                    VarKind::Scalar => EditorStyle::Single,
+                    VarKind::List => EditorStyle::PartsList,
+                },
+            });
+        }
+        self.var_options = opts;
+        Ok(())
     }
 
     // CRUD for environment variables (active profile)
@@ -84,6 +251,61 @@ impl AppState {
             profile.entries[index] = entry;
             db::save_profile(&self.conn, profile)?;
         }
+        Ok(())
+    }
+
+    pub fn move_env_var_up(&mut self, index: usize) -> Result<()> {
+        let profile = &mut self.profiles[self.active_profile_index];
+        if index == 0 || index >= profile.entries.len() {
+            return Ok(());
+        }
+        profile.entries.swap(index - 1, index);
+        db::save_profile(&self.conn, profile)?;
+        Ok(())
+    }
+
+    pub fn move_env_var_down(&mut self, index: usize) -> Result<()> {
+        let profile = &mut self.profiles[self.active_profile_index];
+        if profile.entries.is_empty() || index >= profile.entries.len().saturating_sub(1) {
+            return Ok(());
+        }
+        profile.entries.swap(index, index + 1);
+        db::save_profile(&self.conn, profile)?;
+        Ok(())
+    }
+
+    pub fn replace_var_parts(&mut self, var_name: &str, new_parts: Vec<Entry>) -> Result<()> {
+        let profile = &mut self.profiles[self.active_profile_index];
+
+        let mut idxs: Vec<usize> = profile
+            .entries
+            .iter()
+            .enumerate()
+            .filter_map(|(i, e)| {
+                if e.var_name().as_ref() == var_name {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if idxs.is_empty() {
+            // If the var did not exist yet, append parts at the end.
+            profile.entries.extend(new_parts);
+            db::save_profile(&self.conn, profile)?;
+            return Ok(());
+        }
+
+        let insert_at = *idxs.iter().min().unwrap_or(&0);
+        idxs.sort_unstable();
+        for i in idxs.into_iter().rev() {
+            profile.entries.remove(i);
+        }
+        for (offset, e) in new_parts.into_iter().enumerate() {
+            profile.entries.insert(insert_at + offset, e);
+        }
+
+        db::save_profile(&self.conn, profile)?;
         Ok(())
     }
 
@@ -146,6 +368,112 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     horizontal[1]
 }
 
+fn create_custom_var_dialog<B: Backend>(
+    terminal: &mut Terminal<B>,
+) -> Result<Option<CustomVarDef>> {
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Field {
+        Name,
+        Kind,
+        Separator,
+    }
+
+    let mut name = String::new();
+    let mut kind = VarKind::List;
+    let mut separator = ":".to_string();
+    let mut field = Field::Name;
+
+    loop {
+        terminal.draw(|f| {
+            let area = centered_rect(70, 35, f.size());
+            let title = "Create custom env var (Tab: next, t: toggle kind, Enter: save, Esc: cancel)";
+            let block = Block::default().borders(Borders::ALL).title(title);
+
+            let kind_s = match kind {
+                VarKind::Scalar => "Scalar",
+                VarKind::List => "List",
+            };
+
+            let name_prefix = if field == Field::Name { "> " } else { "  " };
+            let kind_prefix = if field == Field::Kind { "> " } else { "  " };
+            let sep_prefix = if field == Field::Separator { "> " } else { "  " };
+
+            let sep_line = if kind == VarKind::List {
+                format!("{sep_prefix}Separator: {separator}")
+            } else {
+                format!("{sep_prefix}Separator: (n/a)")
+            };
+
+            let text = format!(
+                "{name_prefix}Name: {name}\n{kind_prefix}Kind: {kind_s}\n{sep_line}\n\nNote: list vars are edited as parts; export joins parts using Separator."
+            );
+            let p = Paragraph::new(text).block(block);
+            f.render_widget(p, area);
+        })?;
+
+        if event::poll(std::time::Duration::from_millis(100))? {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Esc => return Ok(None),
+                    KeyCode::Enter => {
+                        let trimmed = name.trim();
+                        if trimmed.is_empty() {
+                            return Ok(None);
+                        }
+                        let def = CustomVarDef {
+                            name: trimmed.to_string(),
+                            kind: kind.clone(),
+                            separator: if kind == VarKind::List {
+                                separator.clone()
+                            } else {
+                                String::new()
+                            },
+                        };
+                        return Ok(Some(def));
+                    }
+                    KeyCode::Tab => {
+                        field = match field {
+                            Field::Name => Field::Kind,
+                            Field::Kind => Field::Separator,
+                            Field::Separator => Field::Name,
+                        };
+                    }
+                    KeyCode::Char('t') | KeyCode::Char('T') => {
+                        kind = match kind {
+                            VarKind::Scalar => VarKind::List,
+                            VarKind::List => VarKind::Scalar,
+                        };
+                        if kind == VarKind::List && separator.is_empty() {
+                            separator = ":".to_string();
+                        }
+                    }
+                    KeyCode::Backspace => match field {
+                        Field::Name => {
+                            name.pop();
+                        }
+                        Field::Kind => {}
+                        Field::Separator => {
+                            if kind == VarKind::List {
+                                separator.pop();
+                            }
+                        }
+                    },
+                    KeyCode::Char(c) => match field {
+                        Field::Name => name.push(c),
+                        Field::Kind => {}
+                        Field::Separator => {
+                            if kind == VarKind::List {
+                                separator.push(c);
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
 //
 // Main TUI: Two Tabs ("Env Vars" and "Profiles")
 // In the "Env Vars" tab, the upper pane shows the list of entries,
@@ -205,7 +533,9 @@ pub fn run() -> Result<()> {
                     // Env Vars tab key bindings.
                     KeyCode::Char('a') if app.active_tab == ActiveTab::EnvVars => {
                         // Launch the edit variable widget.
-                        if let Some(new_entry) = editor::edit_env_var_dialog(&mut terminal)? {
+                        if let Some(new_entry) =
+                            editor::edit_env_var_dialog(&mut terminal, &app.var_options, None)?
+                        {
                             app.add_env_var(new_entry)?;
                         }
                     }
@@ -216,9 +546,83 @@ pub fn run() -> Result<()> {
                     }
                     KeyCode::Char('e') if app.active_tab == ActiveTab::EnvVars => {
                         if let Some(i) = app.env_list_state.selected() {
-                            if let Some(new_entry) = editor::edit_env_var_dialog(&mut terminal)? {
+                            let initial = app.profiles[app.active_profile_index]
+                                .entries
+                                .get(i)
+                                .cloned();
+                            if let Some(new_entry) = editor::edit_env_var_dialog(
+                                &mut terminal,
+                                &app.var_options,
+                                initial.as_ref(),
+                            )? {
                                 app.update_env_var(i, new_entry)?;
                             }
+                        }
+                    }
+                    KeyCode::Char('p') if app.active_tab == ActiveTab::EnvVars => {
+                        if let Some(i) = app.env_list_state.selected() {
+                            let entry = app.profiles[app.active_profile_index]
+                                .entries
+                                .get(i)
+                                .cloned();
+                            if let Some(entry) = entry {
+                                let var_name = entry.var_name().into_owned();
+                                let var_opt = app
+                                    .var_options
+                                    .iter()
+                                    .find(|o| o.name == var_name)
+                                    .cloned()
+                                    .unwrap_or_else(|| VarTypeOption {
+                                        name: var_name.clone(),
+                                        kind: match entry {
+                                            Entry::CustomScalar { .. } => VarKind::Scalar,
+                                            _ => VarKind::List,
+                                        },
+                                        separator: match entry {
+                                            Entry::CustomPart { separator, .. } => separator,
+                                            _ => entry.separator().into_owned(),
+                                        },
+                                        editor: EditorStyle::PartsList,
+                                    });
+
+                                if var_opt.kind == VarKind::List {
+                                    let parts: Vec<Entry> = app.profiles[app.active_profile_index]
+                                        .entries
+                                        .iter()
+                                        .filter(|e| e.var_name().as_ref() == var_opt.name)
+                                        .cloned()
+                                        .collect();
+
+                                    if let Some(new_parts) = editor::edit_var_parts_dialog(
+                                        &mut terminal,
+                                        &var_opt,
+                                        &parts,
+                                    )? {
+                                        app.replace_var_parts(&var_opt.name, new_parts)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Char('C') if app.active_tab == ActiveTab::EnvVars => {
+                        if let Some(def) = create_custom_var_dialog(&mut terminal)? {
+                            db::save_custom_var_def(&app.conn, &def)?;
+                            app.refresh_var_options()?;
+                        }
+                    }
+                    KeyCode::Char('K') if app.active_tab == ActiveTab::EnvVars => {
+                        if let Some(i) = app.env_list_state.selected() {
+                            app.move_env_var_up(i)?;
+                            let new_i = i.saturating_sub(1);
+                            app.env_list_state.select(Some(new_i));
+                        }
+                    }
+                    KeyCode::Char('J') if app.active_tab == ActiveTab::EnvVars => {
+                        if let Some(i) = app.env_list_state.selected() {
+                            app.move_env_var_down(i)?;
+                            let profile = &app.profiles[app.active_profile_index];
+                            let new_i = (i + 1).min(profile.entries.len().saturating_sub(1));
+                            app.env_list_state.select(Some(new_i));
                         }
                     }
                     KeyCode::Down if app.active_tab == ActiveTab::EnvVars => {
@@ -330,7 +734,7 @@ fn draw_env_vars_ui<B: Backend>(f: &mut ratatui::Frame<B>, area: Rect, app: &mut
         .collect();
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(format!(
-            "Env Vars for profile: {} (a: edit/add, d: delete, e: edit selected)",
+            "Env Vars for profile: {} (a:add, e:edit, p:parts, d:delete, J/K:move entry, C:custom var def)",
             active_profile.name
         )))
         .highlight_style(
@@ -395,7 +799,7 @@ fn draw_profiles_ui<B: Backend>(f: &mut ratatui::Frame<B>, area: Rect, app: &mut
 // Editor Module: Provides the Edit/Create Env Var Widget with Integrated Export Preview.
 //
 mod editor {
-    use crate::config::{Entry, PathEntry};
+    use crate::config::{Entry, PathEntry, VarKind};
     use crate::export::{self, OperationMode};
     use anyhow::Result;
     use crossterm::event;
@@ -408,94 +812,111 @@ mod editor {
         Terminal,
     };
 
-    #[derive(Clone)]
-    pub struct VarTypeOption {
-        pub name: &'static str,
-        pub is_multi: bool,
+    fn is_path_part(opt: &super::VarTypeOption) -> bool {
+        opt.editor == super::EditorStyle::PathPart
     }
 
-    pub const VAR_OPTIONS: &[VarTypeOption] = &[
-        VarTypeOption {
-            name: "PATH",
-            is_multi: true,
-        },
-        VarTypeOption {
-            name: "CPATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "C_INCLUDE_PATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "CPLUS_INCLUDE_PATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "OBJC_INCLUDE_PATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "CPPFLAGS",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "CFLAGS",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "CXXFLAGS",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "LDFLAGS",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "LIBRARY_PATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "LD_LIBRARY_PATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "LD_RUN_PATH",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "RANLIB",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "CC",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "CXX",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "AR",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "STRIP",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "GCC_EXEC_PREFIX",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "COLLECT_GCC_OPTIONS",
-            is_multi: false,
-        },
-        VarTypeOption {
-            name: "LANG",
-            is_multi: false,
-        },
-    ];
+    pub fn edit_var_parts_dialog<B: Backend>(
+        terminal: &mut Terminal<B>,
+        var: &super::VarTypeOption,
+        initial_parts: &[Entry],
+    ) -> Result<Option<Vec<Entry>>> {
+        let mut parts: Vec<Entry> = initial_parts.to_vec();
+        let mut selected: usize = 0;
+
+        loop {
+            terminal.draw(|f| {
+                let size = f.size();
+                let area = super::centered_rect(85, 70, size);
+                let chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Min(0), Constraint::Length(2)].as_ref())
+                    .split(area);
+
+                let items: Vec<ListItem> = if parts.is_empty() {
+                    vec![ListItem::new("(no parts)")]
+                } else {
+                    parts.iter().map(|e| ListItem::new(e.to_string())).collect()
+                };
+                let mut list_state = ListState::default();
+                if !parts.is_empty() {
+                    list_state.select(Some(selected.min(parts.len().saturating_sub(1))));
+                }
+
+                let title = format!(
+                    "{} parts (a:add, e:edit, d:delete, J/K:move, Enter:save, Esc:cancel)",
+                    var.name
+                );
+                let list = List::new(items)
+                    .block(Block::default().borders(Borders::ALL).title(title))
+                    .highlight_style(Style::default().bg(Color::Blue));
+                f.render_stateful_widget(list, chunks[0], &mut list_state);
+
+                let hint = Paragraph::new(format!(
+                    "Export preview uses separator '{}' and produces one export line.",
+                    var.separator
+                ))
+                .block(Block::default().borders(Borders::ALL));
+                f.render_widget(hint, chunks[1]);
+            })?;
+
+            if event::poll(std::time::Duration::from_millis(100))? {
+                if let Event::Key(key) = event::read()? {
+                    match key.code {
+                        KeyCode::Esc => return Ok(None),
+                        KeyCode::Enter => return Ok(Some(parts)),
+                        KeyCode::Up => {
+                            selected = selected.saturating_sub(1);
+                        }
+                        KeyCode::Down => {
+                            if selected + 1 < parts.len() {
+                                selected += 1;
+                            }
+                        }
+                        KeyCode::Char('K') => {
+                            if selected > 0 && selected < parts.len() {
+                                parts.swap(selected - 1, selected);
+                                selected = selected.saturating_sub(1);
+                            }
+                        }
+                        KeyCode::Char('J') => {
+                            if selected + 1 < parts.len() {
+                                parts.swap(selected, selected + 1);
+                                selected += 1;
+                            }
+                        }
+                        KeyCode::Char('d') => {
+                            if selected < parts.len() {
+                                parts.remove(selected);
+                                if selected >= parts.len() && selected > 0 {
+                                    selected = selected.saturating_sub(1);
+                                }
+                            }
+                        }
+                        KeyCode::Char('a') => {
+                            let one = vec![var.clone()];
+                            if let Some(new_entry) = edit_env_var_dialog(terminal, &one, None)? {
+                                parts.push(new_entry);
+                                selected = parts.len().saturating_sub(1);
+                            }
+                        }
+                        KeyCode::Char('e') => {
+                            if selected < parts.len() {
+                                let one = vec![var.clone()];
+                                let current = parts.get(selected);
+                                if let Some(new_entry) =
+                                    edit_env_var_dialog(terminal, &one, current)?
+                                {
+                                    parts[selected] = new_entry;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
 
     #[derive(PartialEq, Debug, Clone, Copy, Default)]
     pub enum FocusArea {
@@ -507,8 +928,9 @@ mod editor {
 
     #[derive(Default)]
     pub struct EnvVarEditorState {
+        pub all_options: Vec<super::VarTypeOption>,
         pub search: String,
-        pub filtered: Vec<VarTypeOption>,
+        pub filtered: Vec<super::VarTypeOption>,
         pub selected: usize,
         pub input: String,
         pub path: String,
@@ -520,10 +942,11 @@ mod editor {
     }
 
     impl EnvVarEditorState {
-        pub fn new() -> Self {
-            Self {
+        pub fn new(options: &[super::VarTypeOption], initial: Option<&Entry>) -> Self {
+            let mut s = Self {
+                all_options: options.to_vec(),
                 search: String::new(),
-                filtered: VAR_OPTIONS.to_vec(),
+                filtered: options.to_vec(),
                 selected: 0,
                 input: String::new(),
                 path: String::new(),
@@ -532,7 +955,50 @@ mod editor {
                 active_input_field: 0,
                 focus: FocusArea::Search,
                 last_search: String::new(),
+            };
+
+            if let Some(e) = initial {
+                let initial_name = e.var_name().into_owned();
+                if let Some(pos) = s.all_options.iter().position(|o| o.name == initial_name) {
+                    s.selected = pos;
+                }
+                match e {
+                    Entry::Path(pe) => {
+                        s.path = pe.path.clone();
+                        s.version = pe.version.clone();
+                        s.tool = pe.program.clone();
+                        s.focus = FocusArea::Input;
+                    }
+                    Entry::CPath(v)
+                    | Entry::CInclude(v)
+                    | Entry::CPlusInclude(v)
+                    | Entry::OBJCInclude(v)
+                    | Entry::CPPFlag(v)
+                    | Entry::CFlag(v)
+                    | Entry::CXXFlag(v)
+                    | Entry::LDFlag(v)
+                    | Entry::LibraryPath(v)
+                    | Entry::LDLibraryPath(v)
+                    | Entry::LDRunPath(v)
+                    | Entry::RanLib(v)
+                    | Entry::CC(v)
+                    | Entry::CXX(v)
+                    | Entry::AR(v)
+                    | Entry::Strip(v)
+                    | Entry::GCCExecPrefix(v)
+                    | Entry::CollectGCCOptions(v)
+                    | Entry::Lang(v) => {
+                        s.input = v.clone();
+                        s.focus = FocusArea::Input;
+                    }
+                    Entry::CustomScalar { value, .. } | Entry::CustomPart { value, .. } => {
+                        s.input = value.clone();
+                        s.focus = FocusArea::Input;
+                    }
+                }
             }
+
+            s
         }
 
         pub fn update_filter(&mut self) {
@@ -540,7 +1006,8 @@ mod editor {
                 return;
             }
             self.last_search = self.search.clone();
-            self.filtered = VAR_OPTIONS
+            self.filtered = self
+                .all_options
                 .iter()
                 .filter(|opt| {
                     opt.name
@@ -550,17 +1017,68 @@ mod editor {
                 .cloned()
                 .collect();
             if self.filtered.is_empty() {
-                self.filtered = VAR_OPTIONS.to_vec();
+                self.filtered = self.all_options.clone();
             }
             self.selected = 0;
+        }
+    }
+
+    fn entry_from_state(opt: &super::VarTypeOption, state: &EnvVarEditorState) -> Entry {
+        if is_path_part(opt) {
+            return Entry::Path(PathEntry {
+                path: state.path.clone(),
+                version: state.version.clone(),
+                program: state.tool.clone(),
+            });
+        }
+
+        // Builtins
+        match opt.name.as_str() {
+            "CPATH" => return Entry::CPath(state.input.clone()),
+            "C_INCLUDE_PATH" => return Entry::CInclude(state.input.clone()),
+            "CPLUS_INCLUDE_PATH" => return Entry::CPlusInclude(state.input.clone()),
+            "OBJC_INCLUDE_PATH" => return Entry::OBJCInclude(state.input.clone()),
+            "CPPFLAGS" => return Entry::CPPFlag(state.input.clone()),
+            "CFLAGS" => return Entry::CFlag(state.input.clone()),
+            "CXXFLAGS" => return Entry::CXXFlag(state.input.clone()),
+            "LDFLAGS" => return Entry::LDFlag(state.input.clone()),
+            "LIBRARY_PATH" => return Entry::LibraryPath(state.input.clone()),
+            "LD_LIBRARY_PATH" => return Entry::LDLibraryPath(state.input.clone()),
+            "LD_RUN_PATH" => return Entry::LDRunPath(state.input.clone()),
+            "RANLIB" => return Entry::RanLib(state.input.clone()),
+            "CC" => return Entry::CC(state.input.clone()),
+            "CXX" => return Entry::CXX(state.input.clone()),
+            "AR" => return Entry::AR(state.input.clone()),
+            "STRIP" => return Entry::Strip(state.input.clone()),
+            "GCC_EXEC_PREFIX" => return Entry::GCCExecPrefix(state.input.clone()),
+            "COLLECT_GCC_OPTIONS" => return Entry::CollectGCCOptions(state.input.clone()),
+            "LANG" => return Entry::Lang(state.input.clone()),
+            _ => {}
+        }
+
+        // Custom vars
+        match opt.kind {
+            VarKind::Scalar => Entry::CustomScalar {
+                name: opt.name.clone(),
+                value: state.input.clone(),
+            },
+            VarKind::List => Entry::CustomPart {
+                name: opt.name.clone(),
+                value: state.input.clone(),
+                separator: opt.separator.clone(),
+            },
         }
     }
 
     /// Launches the edit/create env var widget.
     /// Displays fuzzy search on the left and input fields on the right,
     /// with an integrated preview (using default Prepend mode) of the export command for the current variable.
-    pub fn edit_env_var_dialog<B: Backend>(terminal: &mut Terminal<B>) -> Result<Option<Entry>> {
-        let mut state = EnvVarEditorState::new();
+    pub fn edit_env_var_dialog<B: Backend>(
+        terminal: &mut Terminal<B>,
+        options: &[super::VarTypeOption],
+        initial: Option<&Entry>,
+    ) -> Result<Option<Entry>> {
+        let mut state = EnvVarEditorState::new(options, initial);
 
         loop {
             terminal.draw(|f| {
@@ -594,7 +1112,7 @@ mod editor {
                 let items: Vec<ListItem> = state
                     .filtered
                     .iter()
-                    .map(|opt| ListItem::new(opt.name))
+                    .map(|opt| ListItem::new(opt.name.clone()))
                     .collect();
                 let mut list_state = ListState::default();
                 list_state.select(Some(state.selected));
@@ -618,7 +1136,7 @@ mod editor {
                 if state
                     .filtered
                     .get(state.selected)
-                    .map(|o| o.is_multi)
+                    .map(is_path_part)
                     .unwrap_or(false)
                 {
                     // Multi-field input for types like PATH.
@@ -654,8 +1172,8 @@ mod editor {
                     let current_type = state
                         .filtered
                         .get(state.selected)
-                        .map(|opt| opt.name)
-                        .unwrap_or("...");
+                        .map(|opt| opt.name.clone())
+                        .unwrap_or_else(|| "...".to_string());
                     let title = format!("Enter value for {}", current_type);
                     let para = Paragraph::new(state.input.as_ref()).block(
                         Block::default()
@@ -670,7 +1188,7 @@ mod editor {
                 let preview = if state
                     .filtered
                     .get(state.selected)
-                    .map(|o| o.is_multi)
+                    .map(is_path_part)
                     .unwrap_or(false)
                 {
                     let pe = PathEntry {
@@ -681,30 +1199,17 @@ mod editor {
                     let entry = Entry::Path(pe);
                     export::generate_export_line(&entry, OperationMode::Prepend)
                 } else {
-                    let entry = match state.filtered.get(state.selected).map(|o| o.name) {
-                        Some("CPATH") => Entry::CPath(state.input.clone()),
-                        Some("C_INCLUDE_PATH") => Entry::CInclude(state.input.clone()),
-                        Some("CPLUS_INCLUDE_PATH") => Entry::CPlusInclude(state.input.clone()),
-                        Some("OBJC_INCLUDE_PATH") => Entry::OBJCInclude(state.input.clone()),
-                        Some("CPPFLAGS") => Entry::CPPFlag(state.input.clone()),
-                        Some("CFLAGS") => Entry::CFlag(state.input.clone()),
-                        Some("CXXFLAGS") => Entry::CXXFlag(state.input.clone()),
-                        Some("LDFLAGS") => Entry::LDFlag(state.input.clone()),
-                        Some("LIBRARY_PATH") => Entry::LibraryPath(state.input.clone()),
-                        Some("LD_LIBRARY_PATH") => Entry::LDLibraryPath(state.input.clone()),
-                        Some("LD_RUN_PATH") => Entry::LDRunPath(state.input.clone()),
-                        Some("RANLIB") => Entry::RanLib(state.input.clone()),
-                        Some("CC") => Entry::CC(state.input.clone()),
-                        Some("CXX") => Entry::CXX(state.input.clone()),
-                        Some("AR") => Entry::AR(state.input.clone()),
-                        Some("STRIP") => Entry::Strip(state.input.clone()),
-                        Some("GCC_EXEC_PREFIX") => Entry::GCCExecPrefix(state.input.clone()),
-                        Some("COLLECT_GCC_OPTIONS") => {
-                            Entry::CollectGCCOptions(state.input.clone())
-                        }
-                        Some("LANG") => Entry::Lang(state.input.clone()),
-                        _ => Entry::CFlag(state.input.clone()),
-                    };
+                    let opt = state
+                        .filtered
+                        .get(state.selected)
+                        .cloned()
+                        .unwrap_or_else(|| super::VarTypeOption {
+                            name: "CFLAGS".to_string(),
+                            kind: VarKind::List,
+                            separator: " ".to_string(),
+                            editor: super::EditorStyle::Single,
+                        });
+                    let entry = entry_from_state(&opt, &state);
                     export::generate_export_line(&entry, OperationMode::Prepend)
                 };
                 let preview_para = Paragraph::new(preview).block(
@@ -721,40 +1226,7 @@ mod editor {
                         KeyCode::Esc => return Ok(None),
                         KeyCode::Enter => {
                             let selected_opt = &state.filtered[state.selected];
-                            let entry = if selected_opt.is_multi {
-                                Entry::Path(PathEntry {
-                                    path: state.path.clone(),
-                                    version: state.version.clone(),
-                                    program: state.tool.clone(),
-                                })
-                            } else {
-                                match selected_opt.name {
-                                    "CPATH" => Entry::CPath(state.input.clone()),
-                                    "C_INCLUDE_PATH" => Entry::CInclude(state.input.clone()),
-                                    "CPLUS_INCLUDE_PATH" => {
-                                        Entry::CPlusInclude(state.input.clone())
-                                    }
-                                    "OBJC_INCLUDE_PATH" => Entry::OBJCInclude(state.input.clone()),
-                                    "CPPFLAGS" => Entry::CPPFlag(state.input.clone()),
-                                    "CFLAGS" => Entry::CFlag(state.input.clone()),
-                                    "CXXFLAGS" => Entry::CXXFlag(state.input.clone()),
-                                    "LDFLAGS" => Entry::LDFlag(state.input.clone()),
-                                    "LIBRARY_PATH" => Entry::LibraryPath(state.input.clone()),
-                                    "LD_LIBRARY_PATH" => Entry::LDLibraryPath(state.input.clone()),
-                                    "LD_RUN_PATH" => Entry::LDRunPath(state.input.clone()),
-                                    "RANLIB" => Entry::RanLib(state.input.clone()),
-                                    "CC" => Entry::CC(state.input.clone()),
-                                    "CXX" => Entry::CXX(state.input.clone()),
-                                    "AR" => Entry::AR(state.input.clone()),
-                                    "STRIP" => Entry::Strip(state.input.clone()),
-                                    "GCC_EXEC_PREFIX" => Entry::GCCExecPrefix(state.input.clone()),
-                                    "COLLECT_GCC_OPTIONS" => {
-                                        Entry::CollectGCCOptions(state.input.clone())
-                                    }
-                                    "LANG" => Entry::Lang(state.input.clone()),
-                                    _ => Entry::CFlag(state.input.clone()),
-                                }
-                            };
+                            let entry = entry_from_state(selected_opt, &state);
                             return Ok(Some(entry));
                         }
                         KeyCode::Tab => {
@@ -775,7 +1247,7 @@ mod editor {
                                 if state
                                     .filtered
                                     .get(state.selected)
-                                    .map(|o| o.is_multi)
+                                    .map(is_path_part)
                                     .unwrap_or(false)
                                 {
                                     match state.active_input_field {
@@ -805,7 +1277,7 @@ mod editor {
                                 if state
                                     .filtered
                                     .get(state.selected)
-                                    .map(|o| o.is_multi)
+                                    .map(is_path_part)
                                     .unwrap_or(false)
                                 {
                                     match state.active_input_field {
@@ -829,7 +1301,7 @@ mod editor {
                                 if state
                                     .filtered
                                     .get(state.selected)
-                                    .map(|o| o.is_multi)
+                                    .map(is_path_part)
                                     .unwrap_or(false)
                                     && state.active_input_field > 0
                                 {
@@ -848,7 +1320,7 @@ mod editor {
                                 if state
                                     .filtered
                                     .get(state.selected)
-                                    .map(|o| o.is_multi)
+                                    .map(is_path_part)
                                     .unwrap_or(false)
                                     && state.active_input_field < 2
                                 {
@@ -870,7 +1342,8 @@ mod editor {
 
         #[test]
         fn update_filter_does_not_reset_selected_when_search_is_unchanged() {
-            let mut s = EnvVarEditorState::new();
+            let options = super::super::builtin_var_options();
+            let mut s = EnvVarEditorState::new(&options, None);
 
             // Force one filter refresh.
             s.search.push('c');
@@ -911,6 +1384,8 @@ mod tests {
             active_profile_index: 0,
             env_list_state: ListState::default(),
             profile_list_state: ListState::default(),
+            custom_var_defs: Vec::new(),
+            var_options: builtin_var_options(),
         };
 
         app.delete_profile(0)?;

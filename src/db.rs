@@ -1,4 +1,4 @@
-use crate::config::{Entry, EnvProfile};
+use crate::config::{CustomVarDef, Entry, EnvProfile, VarKind};
 use anyhow::Result;
 use rusqlite::{params, types::Type, Connection};
 use std::env;
@@ -23,7 +23,52 @@ pub fn initialize_db(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS custom_vars (
+            name TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            separator TEXT NOT NULL
+        )",
+        [],
+    )?;
     Ok(())
+}
+
+pub fn save_custom_var_def(conn: &Connection, def: &CustomVarDef) -> Result<()> {
+    let kind = match def.kind {
+        VarKind::Scalar => "scalar",
+        VarKind::List => "list",
+    };
+    conn.execute(
+        "INSERT OR REPLACE INTO custom_vars (name, kind, separator) VALUES (?1, ?2, ?3)",
+        params![def.name, kind, def.separator],
+    )?;
+    Ok(())
+}
+
+pub fn load_custom_var_defs(_conn: &Connection) -> Result<Vec<CustomVarDef>> {
+    let mut stmt = _conn.prepare("SELECT name, kind, separator FROM custom_vars ORDER BY name")?;
+    let rows = stmt.query_map([], |row| {
+        let name: String = row.get(0)?;
+        let kind_s: String = row.get(1)?;
+        let separator: String = row.get(2)?;
+        let kind = match kind_s.as_str() {
+            "scalar" => VarKind::Scalar,
+            "list" => VarKind::List,
+            _ => VarKind::Scalar,
+        };
+        Ok(CustomVarDef {
+            name,
+            kind,
+            separator,
+        })
+    })?;
+
+    let mut defs = Vec::new();
+    for r in rows {
+        defs.push(r?);
+    }
+    Ok(defs)
 }
 
 /// Save (or update) a profile.
@@ -87,6 +132,23 @@ pub fn delete_profile(conn: &Connection, name: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_var_defs_roundtrip() -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        initialize_db(&conn)?;
+
+        let def = CustomVarDef {
+            name: "MY_PATH".to_string(),
+            kind: VarKind::List,
+            separator: ";".to_string(),
+        };
+        save_custom_var_def(&conn, &def)?;
+
+        let defs = load_custom_var_defs(&conn)?;
+        assert_eq!(defs, vec![def]);
+        Ok(())
+    }
 
     #[test]
     fn rename_profile_updates_row_in_place() -> Result<()> {
