@@ -6,8 +6,8 @@ use clap::{Parser, Subcommand};
 mod config;
 mod db;
 mod export;
-mod tui_app;
 mod profile_editor;
+mod tui_app;
 
 #[derive(Parser, Debug)]
 #[command(

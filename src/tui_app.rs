@@ -497,17 +497,12 @@ mod editor {
         },
     ];
 
-    #[derive(PartialEq, Debug, Clone, Copy)]
+    #[derive(PartialEq, Debug, Clone, Copy, Default)]
     pub enum FocusArea {
+        #[default]
         Search,
         Options,
         Input,
-    }
-
-    impl Default for FocusArea {
-        fn default() -> Self {
-            FocusArea::Search
-        }
     }
 
     #[derive(Default)]
@@ -572,7 +567,10 @@ mod editor {
             // Force one filter refresh.
             s.search.push('c');
             s.update_filter();
-            assert!(s.filtered.len() > 2, "expected enough options for selection test");
+            assert!(
+                s.filtered.len() > 2,
+                "expected enough options for selection test"
+            );
 
             // Simulate user moving selection in the options list.
             s.selected = 2;
@@ -649,8 +647,8 @@ mod editor {
                     .unwrap_or(false)
                 {
                     // Multi-field input for types like PATH.
-                    let field_titles = vec!["Path", "Version", "Tool Name"];
-                    let values = vec![
+                    let field_titles = ["Path", "Version", "Tool Name"];
+                    let values = [
                         state.path.clone(),
                         state.version.clone(),
                         state.tool.clone(),
@@ -858,10 +856,9 @@ mod editor {
                                     .get(state.selected)
                                     .map(|o| o.is_multi)
                                     .unwrap_or(false)
+                                    && state.active_input_field > 0
                                 {
-                                    if state.active_input_field > 0 {
-                                        state.active_input_field -= 1;
-                                    }
+                                    state.active_input_field -= 1;
                                 }
                             }
                             _ => {}
@@ -878,10 +875,9 @@ mod editor {
                                     .get(state.selected)
                                     .map(|o| o.is_multi)
                                     .unwrap_or(false)
+                                    && state.active_input_field < 2
                                 {
-                                    if state.active_input_field < 2 {
-                                        state.active_input_field += 1;
-                                    }
+                                    state.active_input_field += 1;
                                 }
                             }
                             _ => {}

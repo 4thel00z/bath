@@ -1,14 +1,13 @@
-use std::env;
-use std::path::PathBuf;
 use crate::config::{Entry, EnvProfile};
 use anyhow::Result;
 use rusqlite::{params, types::Type, Connection};
-use serde_json;
+use std::env;
+use std::path::PathBuf;
 
 /// Open (or create) the SQLite database.
 pub fn establish_connection() -> Result<Connection> {
     let home = env::var("HOME").expect("HOME environment variable not set");
-    
+
     let conn = Connection::open(PathBuf::from(home).join(".bath.db"))?;
     initialize_db(&conn)?;
     Ok(conn)

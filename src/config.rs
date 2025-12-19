@@ -7,6 +7,7 @@ pub struct PathEntry {
     pub version: String,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Entry {
     // Paths & Programs
@@ -46,26 +47,26 @@ impl Entry {
     /// Returns the corresponding environment variable name.
     pub fn var_name(&self) -> &'static str {
         match self {
-            Entry::Path(_)          => "PATH",
-            Entry::CPath(_)         => "CPATH",
-            Entry::CInclude(_)      => "C_INCLUDE_PATH",
-            Entry::CPlusInclude(_)  => "CPLUS_INCLUDE_PATH",
-            Entry::OBJCInclude(_)   => "OBJC_INCLUDE_PATH",
-            Entry::CPPFlag(_)       => "CPPFLAGS",
-            Entry::CFlag(_)         => "CFLAGS",
-            Entry::CXXFlag(_)       => "CXXFLAGS",
-            Entry::LDFlag(_)        => "LDFLAGS",
-            Entry::LibraryPath(_)   => "LIBRARY_PATH",
+            Entry::Path(_) => "PATH",
+            Entry::CPath(_) => "CPATH",
+            Entry::CInclude(_) => "C_INCLUDE_PATH",
+            Entry::CPlusInclude(_) => "CPLUS_INCLUDE_PATH",
+            Entry::OBJCInclude(_) => "OBJC_INCLUDE_PATH",
+            Entry::CPPFlag(_) => "CPPFLAGS",
+            Entry::CFlag(_) => "CFLAGS",
+            Entry::CXXFlag(_) => "CXXFLAGS",
+            Entry::LDFlag(_) => "LDFLAGS",
+            Entry::LibraryPath(_) => "LIBRARY_PATH",
             Entry::LDLibraryPath(_) => "LD_LIBRARY_PATH",
-            Entry::LDRunPath(_)     => "LD_RUN_PATH",
-            Entry::RanLib(_)        => "RANLIB",
-            Entry::CC(_)            => "CC",
-            Entry::CXX(_)           => "CXX",
-            Entry::AR(_)            => "AR",
-            Entry::Strip(_)         => "STRIP",
+            Entry::LDRunPath(_) => "LD_RUN_PATH",
+            Entry::RanLib(_) => "RANLIB",
+            Entry::CC(_) => "CC",
+            Entry::CXX(_) => "CXX",
+            Entry::AR(_) => "AR",
+            Entry::Strip(_) => "STRIP",
             Entry::GCCExecPrefix(_) => "GCC_EXEC_PREFIX",
             Entry::CollectGCCOptions(_) => "COLLECT_GCC_OPTIONS",
-            Entry::Lang(_)          => "LANG",
+            Entry::Lang(_) => "LANG",
         }
     }
 
@@ -105,11 +106,20 @@ mod tests {
 
         assert_eq!(Entry::CPath("/opt/include".to_string()).separator(), ":");
         assert_eq!(Entry::CInclude("/opt/include".to_string()).separator(), ":");
-        assert_eq!(Entry::CPlusInclude("/opt/include".to_string()).separator(), ":");
-        assert_eq!(Entry::OBJCInclude("/opt/include".to_string()).separator(), ":");
+        assert_eq!(
+            Entry::CPlusInclude("/opt/include".to_string()).separator(),
+            ":"
+        );
+        assert_eq!(
+            Entry::OBJCInclude("/opt/include".to_string()).separator(),
+            ":"
+        );
 
         assert_eq!(Entry::LibraryPath("/opt/lib".to_string()).separator(), ":");
-        assert_eq!(Entry::LDLibraryPath("/opt/lib".to_string()).separator(), ":");
+        assert_eq!(
+            Entry::LDLibraryPath("/opt/lib".to_string()).separator(),
+            ":"
+        );
         assert_eq!(Entry::LDRunPath("/opt/lib".to_string()).separator(), ":");
     }
 
