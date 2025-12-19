@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/4thel00z/bath/compare/v0.3.1...v0.3.2) - 2025-12-19
+
+### Added
+
+- *(tui)* add k9s-style panes and command palette
+- export vars as single robust assignments
+
 ## [0.3.1](https://github.com/4thel00z/bath/compare/v0.3.0...v0.3.1) - 2025-12-19
 
 ### Fixed
