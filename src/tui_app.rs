@@ -94,6 +94,10 @@ impl AppState {
         Ok(())
     }
     pub fn delete_profile(&mut self, index: usize) -> Result<()> {
+        if self.profiles.len() <= 1 {
+            // Keep at least one profile to avoid later panics from empty state.
+            return Ok(());
+        }
         if index < self.profiles.len() {
             let profile = self.profiles.remove(index);
             db::delete_profile(&self.conn, &profile.name)?;
@@ -859,5 +863,43 @@ mod editor {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use rusqlite::Connection;
+
+    #[test]
+    fn delete_profile_does_not_remove_last_profile() -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        db::initialize_db(&conn)?;
+
+        let default = EnvProfile::new("default");
+        db::save_profile(&conn, &default)?;
+
+        let mut app = AppState {
+            active_tab: ActiveTab::EnvVars,
+            conn,
+            profiles: vec![default],
+            active_profile_index: 0,
+            env_list_state: ListState::default(),
+            profile_list_state: ListState::default(),
+        };
+
+        app.delete_profile(0)?;
+
+        assert_eq!(app.profiles.len(), 1);
+        assert_eq!(app.profiles[0].name, "default");
+        assert_eq!(app.active_profile_index, 0);
+
+        let count: i64 = app
+            .conn
+            .query_row("SELECT COUNT(*) FROM profiles", [], |row| row.get(0))?;
+        assert_eq!(count, 1);
+
+        Ok(())
     }
 }
