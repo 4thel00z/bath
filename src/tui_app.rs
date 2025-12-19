@@ -521,6 +521,7 @@ mod editor {
         pub tool: String,
         pub active_input_field: usize,
         pub focus: FocusArea,
+        last_search: String,
     }
 
     impl EnvVarEditorState {
@@ -535,10 +536,15 @@ mod editor {
                 tool: String::new(),
                 active_input_field: 0,
                 focus: FocusArea::Search,
+                last_search: String::new(),
             }
         }
 
         pub fn update_filter(&mut self) {
+            if self.search == self.last_search {
+                return;
+            }
+            self.last_search = self.search.clone();
             self.filtered = VAR_OPTIONS
                 .iter()
                 .filter(|opt| {
@@ -552,6 +558,28 @@ mod editor {
                 self.filtered = VAR_OPTIONS.to_vec();
             }
             self.selected = 0;
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn update_filter_does_not_reset_selected_when_search_is_unchanged() {
+            let mut s = EnvVarEditorState::new();
+
+            // Force one filter refresh.
+            s.search.push('c');
+            s.update_filter();
+            assert!(s.filtered.len() > 2, "expected enough options for selection test");
+
+            // Simulate user moving selection in the options list.
+            s.selected = 2;
+
+            // Subsequent draws call update_filter again; selection must not be reset.
+            s.update_filter();
+            assert_eq!(s.selected, 2);
         }
     }
 
