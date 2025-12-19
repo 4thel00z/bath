@@ -1,4 +1,4 @@
-use crate::config::{CustomVarDef, Entry, EnvProfile, VarKind};
+use crate::config::{CatalogItem, CustomVarDef, Entry, EnvProfile, ItemKind, VarKind};
 use anyhow::Result;
 use rusqlite::{params, types::Type, Connection};
 use std::env;
@@ -31,7 +31,78 @@ pub fn initialize_db(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS items (
+            id INTEGER PRIMARY KEY,
+            kind TEXT NOT NULL,
+            value TEXT NOT NULL,
+            program TEXT,
+            version TEXT,
+            tags TEXT NOT NULL
+        )",
+        [],
+    )?;
     Ok(())
+}
+
+pub fn save_item(conn: &Connection, item: &mut CatalogItem) -> Result<()> {
+    let kind = match item.kind {
+        ItemKind::Text => "text",
+        ItemKind::Path => "path",
+    };
+    let tags_json = serde_json::to_string(&item.tags)?;
+    if let Some(id) = item.id {
+        conn.execute(
+            "UPDATE items SET kind = ?1, value = ?2, program = ?3, version = ?4, tags = ?5 WHERE id = ?6",
+            params![kind, item.value, item.program, item.version, tags_json, id],
+        )?;
+        return Ok(());
+    }
+
+    conn.execute(
+        "INSERT INTO items (kind, value, program, version, tags) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![kind, item.value, item.program, item.version, tags_json],
+    )?;
+    item.id = Some(conn.last_insert_rowid());
+    Ok(())
+}
+
+pub fn delete_item(conn: &Connection, id: i64) -> Result<()> {
+    conn.execute("DELETE FROM items WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+pub fn load_items(conn: &Connection) -> Result<Vec<CatalogItem>> {
+    let mut stmt =
+        conn.prepare("SELECT id, kind, value, program, version, tags FROM items ORDER BY id")?;
+    let rows = stmt.query_map([], |row| {
+        let id: i64 = row.get(0)?;
+        let kind_s: String = row.get(1)?;
+        let value: String = row.get(2)?;
+        let program: Option<String> = row.get(3)?;
+        let version: Option<String> = row.get(4)?;
+        let tags_json: String = row.get(5)?;
+        let kind = match kind_s.as_str() {
+            "text" => ItemKind::Text,
+            "path" => ItemKind::Path,
+            _ => ItemKind::Text,
+        };
+        let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+        Ok(CatalogItem {
+            id: Some(id),
+            kind,
+            value,
+            program,
+            version,
+            tags,
+        })
+    })?;
+
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
 }
 
 pub fn save_custom_var_def(conn: &Connection, def: &CustomVarDef) -> Result<()> {
@@ -132,6 +203,41 @@ pub fn delete_profile(conn: &Connection, name: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn items_roundtrip_insert_load_update_delete() -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        initialize_db(&conn)?;
+
+        let mut item = CatalogItem {
+            id: None,
+            kind: ItemKind::Text,
+            value: "/opt/bin".to_string(),
+            program: None,
+            version: None,
+            tags: vec!["core".to_string()],
+        };
+        save_item(&conn, &mut item)?;
+        let id = item.id.expect("id should be set");
+
+        let items = load_items(&conn)?;
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].id, Some(id));
+        assert_eq!(items[0].value, "/opt/bin");
+
+        item.value = "/usr/local/bin".to_string();
+        item.tags.push("updated".to_string());
+        save_item(&conn, &mut item)?;
+
+        let items = load_items(&conn)?;
+        assert_eq!(items[0].value, "/usr/local/bin");
+        assert!(items[0].tags.contains(&"updated".to_string()));
+
+        delete_item(&conn, id)?;
+        let items = load_items(&conn)?;
+        assert!(items.is_empty());
+        Ok(())
+    }
 
     #[test]
     fn custom_var_defs_roundtrip() -> Result<()> {

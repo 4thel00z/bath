@@ -33,8 +33,10 @@ fn export_assignment(var_name: &str, value: &str, sep: &str, mode: OperationMode
     match mode {
         OperationMode::Prepend => {
             // Only insert the separator + existing var if it is non-empty:
-            // VAR="<new>${VAR:+<sep>${VAR}}"
-            let tail = format!("${{{}:+{}${{{}}}}}", var_name, sep, var_name);
+            // VAR="<new>${VAR:+<sep>}${VAR}"
+            //
+            // This is functionally equivalent to `${VAR:+<sep>${VAR}}` but reads clearer.
+            let tail = format!("${{{}:+{}}}${{{}}}", var_name, sep, var_name);
             format!("export {}=\"{}{}\";", var_name, escaped_value, tail)
         }
         OperationMode::Append => {
@@ -267,7 +269,7 @@ mod tests {
             .filter(|l| l.starts_with("export PATH="))
             .collect();
         assert_eq!(path_lines.len(), 1, "expected a single PATH export line");
-        assert_eq!(path_lines[0], "export PATH=\"/p1:/p2${PATH:+:${PATH}}\";");
+        assert_eq!(path_lines[0], "export PATH=\"/p1:/p2${PATH:+:}${PATH}\";");
 
         let cflag_lines: Vec<&str> = out
             .lines()
@@ -276,7 +278,7 @@ mod tests {
         assert_eq!(cflag_lines.len(), 1, "expected a single CFLAGS export line");
         assert_eq!(
             cflag_lines[0],
-            "export CFLAGS=\"-O2 -Wall${CFLAGS:+ ${CFLAGS}}\";"
+            "export CFLAGS=\"-O2 -Wall${CFLAGS:+ }${CFLAGS}\";"
         );
     }
 

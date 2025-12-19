@@ -23,6 +23,22 @@ pub struct CustomVarDef {
     pub separator: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ItemKind {
+    Text,
+    Path,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CatalogItem {
+    pub id: Option<i64>,
+    pub kind: ItemKind,
+    pub value: String,
+    pub program: Option<String>,
+    pub version: Option<String>,
+    pub tags: Vec<String>,
+}
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Entry {
