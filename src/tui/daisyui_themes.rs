@@ -2,7 +2,10 @@
 // Source: https://github.com/saadeghi/daisyui/tree/master/packages/daisyui/src/themes
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ColorScheme { Light, Dark }
+pub enum ColorScheme {
+    Light,
+    Dark,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct DaisyUiColors {
@@ -954,7 +957,9 @@ pub fn get(name: &str) -> Option<&'static DaisyUiTheme> {
         return None;
     }
     let lower = name.to_lowercase();
-    THEMES.iter().find(|t| t.name == name || t.name.to_lowercase() == lower)
+    THEMES
+        .iter()
+        .find(|t| t.name == name || t.name.to_lowercase() == lower)
 }
 
 pub fn names() -> Vec<&'static str> {

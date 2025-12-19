@@ -209,13 +209,11 @@ impl AppState {
     pub fn new() -> Result<Self> {
         let conn = db::establish_connection()?;
         let config = crate::tui::theme::load_config().unwrap_or_default();
-        let (theme, theme_preset) = crate::tui::theme::resolve_from_config(&config)
-            .unwrap_or_else(|_| {
-                let theme = crate::tui::theme::resolve_theme(
-                    crate::tui::theme::default_preset(),
-                    None,
-                )
-                .unwrap();
+        let (theme, theme_preset) =
+            crate::tui::theme::resolve_from_config(&config).unwrap_or_else(|_| {
+                let theme =
+                    crate::tui::theme::resolve_theme(crate::tui::theme::default_preset(), None)
+                        .unwrap();
                 (theme, crate::tui::theme::default_preset().to_string())
             });
         let mut profiles = db::load_all_profiles(&conn)?;
@@ -503,4 +501,3 @@ mod tests {
         Ok(())
     }
 }
-

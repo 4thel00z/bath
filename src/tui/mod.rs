@@ -14,4 +14,3 @@ pub mod view;
 pub fn run() -> anyhow::Result<()> {
     app::run()
 }
-

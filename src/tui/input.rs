@@ -1,9 +1,9 @@
 use crate::config::{EnvProfile, VarKind};
 use crate::db;
 use crate::profile_editor::{confirm_dialog, edit_profile_name_dialog};
-use crate::tui::{commands, dialogs, editor, select};
 use crate::tui::state::{AppState, Holding, InputMode};
 use crate::tui::view::View;
+use crate::tui::{commands, dialogs, editor, select};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 use ratatui::backend::Backend;
@@ -434,7 +434,9 @@ fn move_selection(app: &mut AppState, delta: isize) {
         View::Preview | View::Export | View::Help => None,
     };
 
-    let Some(state) = state else { return; };
+    let Some(state) = state else {
+        return;
+    };
 
     if len == 0 {
         state.select(None);
@@ -506,7 +508,8 @@ fn handle_command_key<B: Backend>(
         }
         KeyCode::Down => {
             if !app.command_suggestions.is_empty() {
-                app.command_selected = (app.command_selected + 1).min(app.command_suggestions.len() - 1);
+                app.command_selected =
+                    (app.command_selected + 1).min(app.command_suggestions.len() - 1);
             }
         }
         KeyCode::Backspace => {

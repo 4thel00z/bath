@@ -13,10 +13,7 @@ pub fn draw<B: ratatui::backend::Backend>(f: &mut ratatui::Frame<B>, area: Rect,
         .map(|p| p.name.as_str())
         .unwrap_or("<none>");
 
-    let var_name = app
-        .selected_var_name
-        .as_deref()
-        .unwrap_or("<none>");
+    let var_name = app.selected_var_name.as_deref().unwrap_or("<none>");
 
     let filter = active_filter(app);
     let filter_s = if filter.is_empty() {
@@ -46,9 +43,11 @@ pub fn draw<B: ratatui::backend::Backend>(f: &mut ratatui::Frame<B>, area: Rect,
         Spans::from(Span::styled(cmd_hints, app.theme.dim_text())),
     ];
 
-    let p = Paragraph::new(text)
-        .style(app.theme.text())
-        .block(Block::default().borders(Borders::BOTTOM).border_style(app.theme.border()));
+    let p = Paragraph::new(text).style(app.theme.text()).block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .border_style(app.theme.border()),
+    );
     f.render_widget(p, area);
 }
 
@@ -86,4 +85,3 @@ fn command_hints() -> String {
     // Keep this short-ish so it fits most terminals.
     "Commands: :profiles :vars :parts :items :defs :preview :export :themes :theme <name> :use <profile> :new-var :new-item :quit".to_string()
 }
-

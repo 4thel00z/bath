@@ -38,10 +38,7 @@ pub fn refresh_command_suggestions(app: &mut AppState) {
             }
         }
     } else if input.starts_with("theme ") {
-        let q = input
-            .trim_start_matches("theme ")
-            .trim()
-            .to_lowercase();
+        let q = input.trim_start_matches("theme ").trim().to_lowercase();
         for name in daisyui_themes::names() {
             if q.is_empty() || name.to_lowercase().contains(&q) {
                 suggestions.push(format!("theme {name}"));
@@ -194,4 +191,3 @@ pub fn execute_command<B: Backend>(
 
     Ok(false)
 }
-

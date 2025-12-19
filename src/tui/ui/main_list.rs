@@ -58,7 +58,11 @@ fn draw_profiles<B: ratatui::backend::Backend>(
     f.render_stateful_widget(list, area, &mut app.profile_list_state);
 }
 
-fn draw_vars<B: ratatui::backend::Backend>(f: &mut ratatui::Frame<B>, area: Rect, app: &mut AppState) {
+fn draw_vars<B: ratatui::backend::Backend>(
+    f: &mut ratatui::Frame<B>,
+    area: Rect,
+    app: &mut AppState,
+) {
     let rows = select::compute_var_rows(app);
     let items: Vec<ListItem> = rows
         .iter()
@@ -173,7 +177,10 @@ fn draw_defs<B: ratatui::backend::Backend>(
                 crate::config::VarKind::Scalar => "Scalar",
                 crate::config::VarKind::List => "List",
             };
-            ListItem::new(format!("{:<18}  {:<6}  sep='{}'", d.name, kind, d.separator))
+            ListItem::new(format!(
+                "{:<18}  {:<6}  sep='{}'",
+                d.name, kind, d.separator
+            ))
         })
         .collect();
 
@@ -213,14 +220,12 @@ fn draw_preview<B: ratatui::backend::Backend>(
         .collect::<Vec<_>>()
         .join(&sep);
     let text = format!("{var} = {joined}\n\n(parts: {})", parts.len());
-    let p = Paragraph::new(text)
-        .style(app.theme.text())
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(app.theme.border())
-                .title("Preview"),
-        );
+    let p = Paragraph::new(text).style(app.theme.text()).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(app.theme.border())
+            .title("Preview"),
+    );
     f.render_widget(p, area);
 }
 
@@ -286,14 +291,11 @@ Notes
         count = crate::tui::daisyui_themes::THEMES.len(),
         themes = themes_block
     );
-    let p = Paragraph::new(text)
-        .style(app.theme.text())
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(app.theme.border())
-                .title("Help"),
-        );
+    let p = Paragraph::new(text).style(app.theme.text()).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(app.theme.border())
+            .title("Help"),
+    );
     f.render_widget(p, area);
 }
-

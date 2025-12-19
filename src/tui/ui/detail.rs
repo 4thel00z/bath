@@ -7,11 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-pub fn draw<B: ratatui::backend::Backend>(
-    f: &mut ratatui::Frame<B>,
-    area: Rect,
-    app: &AppState,
-) {
+pub fn draw<B: ratatui::backend::Backend>(f: &mut ratatui::Frame<B>, area: Rect, app: &AppState) {
     let text = match app.active_view {
         View::Profiles => details_profiles(app),
         View::Vars => details_vars(app),
@@ -20,17 +16,18 @@ pub fn draw<B: ratatui::backend::Backend>(
         View::Defs => details_defs(app),
         View::Preview => details_vars(app),
         View::Export => details_vars(app),
-        View::Help => "Use :profiles, :vars, :parts, :items, :defs\nUse / to filter the current view.\n".to_string(),
+        View::Help => {
+            "Use :profiles, :vars, :parts, :items, :defs\nUse / to filter the current view.\n"
+                .to_string()
+        }
     };
 
-    let p = Paragraph::new(text)
-        .style(app.theme.text())
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(app.theme.border())
-                .title("Details"),
-        );
+    let p = Paragraph::new(text).style(app.theme.text()).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(app.theme.border())
+            .title("Details"),
+    );
     f.render_widget(p, area);
 }
 
@@ -42,11 +39,7 @@ fn details_profiles(app: &AppState) -> String {
     };
 
     let full = export::generate_full_export(p, export::OperationMode::Prepend);
-    let preview = full
-        .lines()
-        .take(12)
-        .collect::<Vec<_>>()
-        .join("\n");
+    let preview = full.lines().take(12).collect::<Vec<_>>().join("\n");
 
     format!(
         "Profile: {}\nEntries: {}\n\nExport (first lines):\n{}",
@@ -157,4 +150,3 @@ fn details_defs(app: &AppState) -> String {
         def.name, def.kind, def.separator, def.editor
     )
 }
-

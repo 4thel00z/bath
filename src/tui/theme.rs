@@ -172,62 +172,64 @@ pub fn resolve_theme(preset: &str, overrides: Option<&ThemeSection>) -> Result<T
             .context("base_300")?,
         base_content: parse_css_color(t.base_content.as_deref().unwrap_or(def.colors.base_content))
             .context("base_content")?,
-        primary: parse_css_color(t.primary.as_deref().unwrap_or(def.colors.primary)).context("primary")?,
+        primary: parse_css_color(t.primary.as_deref().unwrap_or(def.colors.primary))
+            .context("primary")?,
         primary_content: parse_css_color(
             t.primary_content
                 .as_deref()
                 .unwrap_or(def.colors.primary_content),
         )
-            .context("primary_content")?,
-        secondary: parse_css_color(t.secondary.as_deref().unwrap_or(def.colors.secondary)).context("secondary")?,
+        .context("primary_content")?,
+        secondary: parse_css_color(t.secondary.as_deref().unwrap_or(def.colors.secondary))
+            .context("secondary")?,
         secondary_content: parse_css_color(
             t.secondary_content
                 .as_deref()
                 .unwrap_or(def.colors.secondary_content),
         )
-            .context("secondary_content")?,
-        accent: parse_css_color(t.accent.as_deref().unwrap_or(def.colors.accent)).context("accent")?,
+        .context("secondary_content")?,
+        accent: parse_css_color(t.accent.as_deref().unwrap_or(def.colors.accent))
+            .context("accent")?,
         accent_content: parse_css_color(
             t.accent_content
                 .as_deref()
                 .unwrap_or(def.colors.accent_content),
         )
-            .context("accent_content")?,
-        neutral: parse_css_color(t.neutral.as_deref().unwrap_or(def.colors.neutral)).context("neutral")?,
+        .context("accent_content")?,
+        neutral: parse_css_color(t.neutral.as_deref().unwrap_or(def.colors.neutral))
+            .context("neutral")?,
         neutral_content: parse_css_color(
             t.neutral_content
                 .as_deref()
                 .unwrap_or(def.colors.neutral_content),
         )
-            .context("neutral_content")?,
+        .context("neutral_content")?,
         info: parse_css_color(t.info.as_deref().unwrap_or(def.colors.info)).context("info")?,
-        info_content: parse_css_color(
-            t.info_content
-                .as_deref()
-                .unwrap_or(def.colors.info_content),
-        )
+        info_content: parse_css_color(t.info_content.as_deref().unwrap_or(def.colors.info_content))
             .context("info_content")?,
-        success: parse_css_color(t.success.as_deref().unwrap_or(def.colors.success)).context("success")?,
+        success: parse_css_color(t.success.as_deref().unwrap_or(def.colors.success))
+            .context("success")?,
         success_content: parse_css_color(
             t.success_content
                 .as_deref()
                 .unwrap_or(def.colors.success_content),
         )
-            .context("success_content")?,
-        warning: parse_css_color(t.warning.as_deref().unwrap_or(def.colors.warning)).context("warning")?,
+        .context("success_content")?,
+        warning: parse_css_color(t.warning.as_deref().unwrap_or(def.colors.warning))
+            .context("warning")?,
         warning_content: parse_css_color(
             t.warning_content
                 .as_deref()
                 .unwrap_or(def.colors.warning_content),
         )
-            .context("warning_content")?,
+        .context("warning_content")?,
         error: parse_css_color(t.error.as_deref().unwrap_or(def.colors.error)).context("error")?,
         error_content: parse_css_color(
             t.error_content
                 .as_deref()
                 .unwrap_or(def.colors.error_content),
         )
-            .context("error_content")?,
+        .context("error_content")?,
     };
 
     Ok(Theme {
@@ -374,4 +376,3 @@ fn oklab_to_linear_srgb(l: f64, a: f64, b: f64) -> (f64, f64, f64) {
 fn in_gamut(r: f64, g: f64, b: f64) -> bool {
     (0.0..=1.0).contains(&r) && (0.0..=1.0).contains(&g) && (0.0..=1.0).contains(&b)
 }
-

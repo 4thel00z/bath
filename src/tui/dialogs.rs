@@ -214,7 +214,8 @@ pub fn create_or_edit_item_dialog<B: Backend>(
                             Field::Version => Field::Tags,
                             Field::Tags => Field::Kind,
                         };
-                        if kind == ItemKind::Text && matches!(field, Field::Program | Field::Version)
+                        if kind == ItemKind::Text
+                            && matches!(field, Field::Program | Field::Version)
                         {
                             field = Field::Tags;
                         }
@@ -272,4 +273,3 @@ pub fn create_or_edit_item_dialog<B: Backend>(
         }
     }
 }
-

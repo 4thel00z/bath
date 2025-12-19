@@ -72,7 +72,9 @@ fn draw_overlays<B: Backend>(f: &mut ratatui::Frame<B>, size: Rect, app: &mut Ap
 
         let mut state = ListState::default();
         if !items.is_empty() {
-            state.select(Some(app.command_selected.min(items.len().saturating_sub(1))));
+            state.select(Some(
+                app.command_selected.min(items.len().saturating_sub(1)),
+            ));
         }
 
         let list = List::new(items)

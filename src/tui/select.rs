@@ -215,4 +215,3 @@ pub fn var_option_for(app: &AppState, var_name: &str) -> VarTypeOption {
         editor: EditorStyle::PartsList,
     }
 }
-

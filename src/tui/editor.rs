@@ -208,7 +208,11 @@ impl EnvVarEditorState {
         self.filtered = self
             .all_options
             .iter()
-            .filter(|opt| opt.name.to_lowercase().contains(&self.search.to_lowercase()))
+            .filter(|opt| {
+                opt.name
+                    .to_lowercase()
+                    .contains(&self.search.to_lowercase())
+            })
             .cloned()
             .collect();
         if self.filtered.is_empty() {
@@ -336,18 +340,21 @@ pub fn edit_env_var_dialog<B: Backend>(
             {
                 // Multi-field input for types like PATH.
                 let field_titles = ["Path", "Version", "Tool Name"];
-                let values = [state.path.clone(), state.version.clone(), state.tool.clone()];
+                let values = [
+                    state.path.clone(),
+                    state.version.clone(),
+                    state.tool.clone(),
+                ];
                 let field_items: Vec<ListItem> = field_titles
                     .iter()
                     .enumerate()
                     .map(|(i, title)| {
-                        let indicator = if state.focus == FocusArea::Input
-                            && state.active_input_field == i
-                        {
-                            "> "
-                        } else {
-                            "  "
-                        };
+                        let indicator =
+                            if state.focus == FocusArea::Input && state.active_input_field == i {
+                                "> "
+                            } else {
+                                "  "
+                            };
                         ListItem::new(format!("{}{}: {}", indicator, title, values[i]))
                     })
                     .collect();
@@ -539,7 +546,10 @@ mod tests {
         // Force one filter refresh.
         s.search.push('c');
         s.update_filter();
-        assert!(s.filtered.len() > 2, "expected enough options for selection test");
+        assert!(
+            s.filtered.len() > 2,
+            "expected enough options for selection test"
+        );
 
         // Simulate user moving selection in the options list.
         s.selected = 2;
@@ -549,4 +559,3 @@ mod tests {
         assert_eq!(s.selected, 2);
     }
 }
-
